@@ -787,5 +787,5 @@ if __name__ == "__main__":
     main()
 
 """
-torchrun --nproc_per_node=8 app.py
+torchrun --nproc_per_node=8 --master_port=29501 app.py
 """
