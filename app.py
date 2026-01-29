@@ -712,19 +712,41 @@ def create_gradio_interface():
                     label="Generated Video",
                     height=400,
                 )
-                
-                gr.HTML('<div class="section-title" style="margin-top: 1.5rem;">📁 Examples</div>')
-                gr.HTML('<p class="info-text">Click an example to load it into the interface.</p>')
-                
-                with gr.Row():
-                    example_00_btn = gr.Button("Example 00", variant="secondary", elem_classes=["example-btn"])
-                    example_01_btn = gr.Button("Example 01", variant="secondary", elem_classes=["example-btn"])
-                    example_02_btn = gr.Button("Example 02", variant="secondary", elem_classes=["example-btn"])
         
-        # Example loaders
-        example_00_btn.click(fn=lambda: load_example("00"), outputs=[input_image, prompt, intrinsics_file, poses_file])
-        example_01_btn.click(fn=lambda: load_example("01"), outputs=[input_image, prompt, intrinsics_file, poses_file])
-        example_02_btn.click(fn=lambda: load_example("02"), outputs=[input_image, prompt, intrinsics_file, poses_file])
+        # Examples section
+        gr.HTML('<div class="section-title" style="margin-top: 1.5rem;">📁 Examples</div>')
+        gr.HTML('<p class="info-text">Click an example row to load it. Each includes an image, prompt, and camera control files.</p>')
+        
+        gr.Examples(
+            examples=[
+                [
+                    "examples/00/image.jpg",
+                    "The video presents a soaring journey through a fantasy jungle. The wind whips past the rider's blue hands gripping the reins, causing the leather straps to vibrate. The ancient gothic castle approaches steadily, its stone details becoming clearer against the backdrop of floating islands and distant waterfalls.",
+                    "examples/00/intrinsics.npy",
+                    "examples/00/poses.npy",
+                ],
+                [
+                    "examples/01/image.jpg",
+                    "A slow panoramic sweep around Stonehenge on a misty, overcast day, capturing the ancient standing stones in serene stillness, with soft ambient wind and distant bird calls enhancing the timeless atmosphere.",
+                    "examples/01/intrinsics.npy",
+                    "examples/01/poses.npy",
+                ],
+                [
+                    "examples/02/image.jpg",
+                    "The video presents a cinematic, first-person wandering experience through a hyper-realistic urban environment rendered in a video game engine. It begins with a static, sun-drenched alley framed by graffiti-laden industrial walls and overhead power lines, immediately establishing a gritty, lived-in atmosphere.",
+                    "examples/02/intrinsics.npy",
+                    "examples/02/poses.npy",
+                ],
+                [
+                    "examples/03/image.jpg",
+                    "The wind howls like a living thing atop the Wall, tearing at cloak and breath alike. Frost-bitten reins shudder in blue-gloved hands, leather singing under the strain as the mount surges forward. Rime needles the air; every gust stings, every exhale turns to smoke. Ahead, the Wall rises—an ancient, merciless spine of ice—its face etched with a thousand winters. As the rider climbs, the world beyond unfurls in stark grandeur: frozen waterfalls suspended mid-fall, pale as glass; shattered icefields drifting like islands in a white void. Black stone keeps loom closer, their gothic lines emerging from the storm, torchlight flickering like wary eyes. The Wall does not welcome. It watches. And still the rider presses on, carried by wind and oath into the cold, where legends are written in frost.",
+                    "examples/03/intrinsics.npy",
+                    "examples/03/poses.npy",
+                ],
+            ],
+            inputs=[input_image, prompt, intrinsics_file, poses_file],
+            label="Click to load example",
+        )
         
         # Generate button
         generate_btn.click(
