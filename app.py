@@ -426,9 +426,18 @@ def generate_video_wrapper(image, prompt, intrinsics_file, poses_file, resolutio
         
         return output_path
         
+    except ValueError as e:
+        # User input validation errors - show warning and return None
+        logging.warning(f"Input validation: {e}")
+        import gradio as gr
+        gr.Warning(str(e))
+        return None
     except Exception as e:
+        # Unexpected errors - log and show error
         logging.error(f"Generation error: {e}")
-        raise
+        import gradio as gr
+        gr.Error(f"Generation failed: {e}")
+        return None
 
 
 def load_example(example_name: str):
