@@ -268,7 +268,7 @@ class WanI2V:
 
         # preprocess
         guide_scale = (guide_scale, guide_scale) if isinstance(
-            guide_scale, float) else guide_scale
+            guide_scale, (int, float)) else guide_scale
         img = TF.to_tensor(img).sub_(0.5).div_(0.5).to(self.device)
 
         F = frame_num
@@ -434,7 +434,8 @@ class WanI2V:
             if offload_model:
                 torch.cuda.empty_cache()
 
-            for _, t in enumerate(tqdm(timesteps)):
+            for i, t in enumerate(tqdm(timesteps, desc=f"sampling timesteps")):
+                logging.info(f"Timestep {i+1}/{len(timesteps)}: t={t.item():.4f}")
                 latent_model_input = [latent.to(self.device)]
                 timestep = [t]
 
