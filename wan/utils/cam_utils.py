@@ -88,6 +88,7 @@ def get_plucker_embeddings(
     Ks: torch.Tensor,
     height: int,
     width: int,
+    only_rays_d: bool = False,
 ):
     n_frames = c2ws_mat.shape[0]
     grid_xy = create_meshgrid(n_frames, height, width, device=c2ws_mat.device, dtype=c2ws_mat.dtype) # [f, h*w, 2]
@@ -103,12 +104,16 @@ def get_plucker_embeddings(
     directions = directions / directions.norm(dim=-1, keepdim=True) # [f, h*w, 3]
 
     rays_d = directions @ c2ws_mat[:, :3, :3].transpose(-1, -2) # [f, h*w, 3]
-    rays_o = c2ws_mat[:, :3, 3] # [f, 3]
-    rays_o = rays_o[:, None, :].expand_as(rays_d) # [f, h*w, 3]
-    # rays_dxo = torch.cross(rays_o, rays_d, dim=-1) # [f, h*w, 3]
-    # note refer to: apt2
-    plucker_embeddings = torch.cat([rays_o, rays_d], dim=-1) # [f, h*w, 6]
-    plucker_embeddings = plucker_embeddings.view([n_frames, height, width, 6]) # [f*h*w, 6]
+    if only_rays_d:
+        plucker_embeddings = rays_d # [f, h*w, 3]
+        plucker_embeddings = plucker_embeddings.view([n_frames, height, width, 3]) # [f*h*w, 3]
+    else:
+        rays_o = c2ws_mat[:, :3, 3] # [f, 3]
+        rays_o = rays_o[:, None, :].expand_as(rays_d) # [f, h*w, 3]
+        # rays_dxo = torch.cross(rays_o, rays_d, dim=-1) # [f, h*w, 3]
+        # note refer to: apt2
+        plucker_embeddings = torch.cat([rays_o, rays_d], dim=-1) # [f, h*w, 6]
+        plucker_embeddings = plucker_embeddings.view([n_frames, height, width, 6]) # [f*h*w, 6]
     return plucker_embeddings
 
 
