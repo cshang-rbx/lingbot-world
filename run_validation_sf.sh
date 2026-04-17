@@ -27,6 +27,16 @@ MANIFEST="${WORK_DIR}/manifest.tsv"
 
 mkdir -p "$OUTPUT_DIR" "$WORK_DIR" "$LOG_DIR"
 
+# 0) Ensure model weights are present under $WEIGHT_DIR. This is a no-op
+#    when the files already exist (sentinel-based check). Override the
+#    default HF repos via HF_REPO_BASE / HF_REPO_FAST, or set
+#    INCLUDE_TRANSFORMERS=1 to also pull high_noise_model/ and low_noise_model/.
+#    Skip the setup step entirely with SKIP_SETUP=1.
+if [ "${SKIP_SETUP:-0}" != "1" ]; then
+    echo "[run] setup: ensuring model weights under ${WEIGHT_DIR}"
+    bash "$SCRIPT_DIR/setup_models.sh" "$WEIGHT_DIR"
+fi
+
 # 1) Build per-entry action dirs (poses.npy / action.npy / intrinsics.npy /
 #    image.png / prompt.txt / meta.txt) and the manifest.tsv file.
 #
