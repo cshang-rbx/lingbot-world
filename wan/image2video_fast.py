@@ -210,7 +210,8 @@ class WanI2VFast:
                  seed=-1,
                  offload_model=True,
                  max_sequence_length=512,
-                 max_attention_size=None,):
+                 max_attention_size=None,
+                 sink_size=None,):
         r"""
         Generates video frames from input image and text prompt using diffusion process.
 
@@ -234,6 +235,22 @@ class WanI2VFast:
                 Random seed for noise generation. If -1, use random seed
             offload_model (`bool`, *optional*, defaults to True):
                 If True, offloads models to CPU during generation to save VRAM
+            max_attention_size (`int`, *optional*, defaults to None):
+                Maximum number of KV tokens each query can attend to. If None,
+                uses the full allocated ``kv_size = frame_seqlen * lat_f``.
+                When set, the value is ALSO mirrored into each self-attn
+                module's ``local_attn_size``, which is the gate that
+                activates KV-cache rolling / the attention sink in both the
+                non-SP and SP forward paths.
+            sink_size (`int`, *optional*, defaults to None):
+                Number of leading latent frames pinned as an attention sink
+                when the KV cache rolls. If not None, overrides the value
+                baked into the model config on every
+                ``CausalWanSelfAttention`` module. Only takes effect when
+                ``max_attention_size`` (and therefore ``local_attn_size``) is
+                also set, and when the allocated cache is actually smaller
+                than the full sequence (otherwise the cache never overflows
+                and sink_size is unused).
 
         Returns:
             torch.Tensor:
@@ -387,6 +404,51 @@ class WanI2VFast:
             yield
 
         no_sync_model = getattr(self.model, 'no_sync', noop_no_sync)
+
+        # Override per-module sink_size / local_attn_size at inference time.
+        # Both the non-SP path (CausalWanSelfAttention.forward in
+        # wan/modules/model_fast.py) and the SP path (sp_attn_forward_causal
+        # in wan/distributed/sequence_parallel.py) read these attributes from
+        # the self-attn module, so setting them here is sufficient for both.
+        # Uses modules() so it works whether or not the model is wrapped in
+        # FSDP.
+        #
+        # When max_attention_size is specified we also set local_attn_size to
+        # the same value: local_attn_size != -1 is the gate that activates
+        # the KV-cache rolling / sink logic in both forward paths. Without
+        # this flip, sink_size has no effect even if set.
+        need_module_override = (sink_size is not None) or (max_attention_size is not None)
+        if need_module_override:
+            from .modules.model_fast import CausalWanSelfAttention
+            sink_size_int = int(sink_size) if sink_size is not None else None
+            local_attn_size_int = (
+                int(max_attention_size) if max_attention_size is not None else None
+            )
+            n_updated = 0
+            for m in self.model.modules():
+                if isinstance(m, CausalWanSelfAttention):
+                    if sink_size_int is not None:
+                        m.sink_size = sink_size_int
+                    if local_attn_size_int is not None:
+                        m.local_attn_size = local_attn_size_int
+                    n_updated += 1
+            if n_updated == 0:
+                logging.warning(
+                    "sink_size/max_attention_size override requested but no "
+                    "CausalWanSelfAttention modules were found on the model.")
+            else:
+                msg_parts = []
+                if sink_size_int is not None:
+                    msg_parts.append(f"sink_size={sink_size_int}")
+                if local_attn_size_int is not None:
+                    msg_parts.append(
+                        f"local_attn_size={local_attn_size_int} "
+                        "(mirrored from max_attention_size)"
+                    )
+                logging.info(
+                    f"Set {', '.join(msg_parts)} on {n_updated} self-attn "
+                    "module(s)."
+                )
 
         # Initialize KV cache to all zeros
         model_args = self.model.config

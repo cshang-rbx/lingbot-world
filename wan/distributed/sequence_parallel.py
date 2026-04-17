@@ -432,6 +432,8 @@ def sp_attn_forward_causal(
 
     current_end = current_start + seq_lens
     kv_cache_size = kv_cache["k"].shape[1]
+    sink_tokens = self.sink_size * frame_seqlen
+    self.local_attn_size = max_attention_size if max_attention_size is not None else -1
     if self.local_attn_size != -1 and (current_end > kv_cache["global_end_index"].item()) and (
             seq_lens + kv_cache["local_end_index"].item() > kv_cache_size):
         # Calculate the number of new tokens added in this step
@@ -462,6 +464,7 @@ def sp_attn_forward_causal(
 
     # Attention on local heads, full key/value cache for this rank
     x_local = flash_attention(query, k_cache, v_cache)  # [B, s, local_heads, d]
+    # print(f"max_attention_size: {max_attention_size} k_cache: {k_cache.shape} sink_tokens: {sink_tokens} local_attn_size: {self.local_attn_size}")
 
     # Gather all head results across GPUs: [B, s, n, d]
     x_full = gather_forward(x_local, dim=2)  # all_gather on head dim

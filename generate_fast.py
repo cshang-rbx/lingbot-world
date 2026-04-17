@@ -163,6 +163,18 @@ def _parse_args():
         default=None,
         help="The size of kv cache during inference.")
     parser.add_argument(
+        "--sink_size",
+        type=int,
+        default=0,
+        help=(
+            "Number of leading latent frames to keep pinned as an attention "
+            "sink when the self-attn KV cache rolls. Only has a visible "
+            "effect when --max_attention_size is also set (which activates "
+            "the rolling gate by mirroring its value into local_attn_size) "
+            "AND the allocated cache is smaller than the full sequence. "
+            "1 latent frame == 4 pixel frames == 0.25 s at 16 FPS."
+        ))
+    parser.add_argument(
         "--save_dir",
         type=str,
         default='output',
@@ -280,7 +292,8 @@ def _run_one(wan_i2v, cfg, args, *, prompt, image_path, action_path,
         shift=args.sample_shift,
         seed=args.base_seed,
         offload_model=args.offload_model,
-        max_attention_size=args.max_attention_size)
+        max_attention_size=args.max_attention_size,
+        sink_size=args.sink_size)
 
     if rank == 0:
         _save_video_rank0(video, save_file, cfg, args.save_dir)
@@ -428,7 +441,8 @@ def generate(args):
             shift=args.sample_shift,
             seed=args.base_seed,
             offload_model=args.offload_model,
-            max_attention_size=args.max_attention_size)
+            max_attention_size=args.max_attention_size,
+            sink_size=args.sink_size)
 
         if rank == 0:
             os.makedirs(args.save_dir, exist_ok=True)

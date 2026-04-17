@@ -64,6 +64,22 @@ SIZE=${SIZE:-"480*832"}
 ULYSSES_SIZE=${ULYSSES_SIZE:-$NPROC}
 BATCH_LOG="${LOG_DIR}/batch.log"
 
+# Optional attention knobs, forwarded to generate_fast.py when set.
+#   MAX_ATTENTION_SIZE:  KV-cache attention window, in tokens. Passing it
+#                        ALSO mirrors into each self-attn module's
+#                        local_attn_size (so the cache-rolling / sink path
+#                        becomes active).
+#   SINK_SIZE:           Number of leading latent frames pinned as the
+#                        attention sink. Only has an effect when
+#                        MAX_ATTENTION_SIZE is also set.
+ATTENTION_SIZE_ARGS=()
+if [ -n "${MAX_ATTENTION_SIZE:-}" ]; then
+    ATTENTION_SIZE_ARGS+=(--max_attention_size "$MAX_ATTENTION_SIZE")
+fi
+if [ -n "${SINK_SIZE:-}" ]; then
+    ATTENTION_SIZE_ARGS+=(--sink_size "$SINK_SIZE")
+fi
+
 echo "[run] generating ${OUTPUT_DIR} from manifest ${MANIFEST} (nproc=${NPROC})"
 set -x
 torchrun --nproc_per_node="$NPROC" "$SCRIPT_DIR/generate_fast.py" \
@@ -76,6 +92,7 @@ torchrun --nproc_per_node="$NPROC" "$SCRIPT_DIR/generate_fast.py" \
     --save_dir "$OUTPUT_DIR" \
     --manifest "$MANIFEST" \
     --skip_existing True \
+    ${ATTENTION_SIZE_ARGS[@]} \
     2>&1 | tee "$BATCH_LOG"
 set +x
 
